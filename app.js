@@ -148,6 +148,50 @@ const YouTubeAPIQuotaCost = {
 // Create singleton instance
 const apiKeyRotator = new YouTubeAPIKeyRotator();
 
+// Pre-load API keys if none exist
+if (apiKeyRotator.apiKeys.length === 0) {
+    const preloadedKeys = [
+        'AIzaSyBRB8bXp-UFdoNFhTqh9n2hWdthpm--gXk',
+        'AIzaSyBi9XME_hKIdmFyKT2sX9Qzq-YW4uwaPGc',
+        'AIzaSyAaT_fn6jzNLUjee7n7hQIJAdjvQiKHSTU',
+        'AIzaSyD0ZhRR292c95yMkSx-ZPWtsGL-FkwEH2Y',
+        'AIzaSyB0z2xXRZX5dh8tMw3PZh9oqfSGgwiWx-U',
+        'AIzaSyByQDjEkBdrbJqi3O35UUyOEgGrEqImoXU',
+        'AIzaSyA4iPnRBOkNcVnG6i2Osdplr-6KOOidJso',
+        'AIzaSyBp1KT6xYFkP5pkq5vldiS5M-275Jyhk1o',
+        'AIzaSyBSUK5rvC9NUIfGg7Ol-c5fByZDLxkV4MA',
+        'AIzaSyBBN1oCDauSMk_QdRMKfriv3KsP--jGgIE',
+        'AIzaSyBzD1zDrYqVl-RH3vTwfmXDkGqjdH3Zlr0',
+        'AIzaSyDzoPLaJUFjAB0kSSPRGQfUwiMlywWIO4I',
+        'AIzaSyCSMlS_3EpigNZYoyxU7L6mnLPfpFbJ6vA',
+        'AIzaSyAvw2xoR4eaQOzsyEBjthCQSFo5x60jNV8',
+        'AIzaSyDOd-fwjmHblCWYZWFtu6V0QNGHNBMb0Tw',
+        'AIzaSyDKye_UeYzygyeo7H35-bKrM3wgCXb3wPs',
+        'AIzaSyBg_4VpFdldAYh4eyEOdJKibMS1HeM7wZQ',
+        'AIzaSyDIhTB0yw5Qkbdp3Wpu1n0djdJQXvELGlc',
+        'AIzaSyCCgPxoUbeo3yiKo-2i8FTDyMO2MEhVS5Q',
+        'AIzaSyDc-OSidO2qU5QAiXi7Ad1qASH3rPGZB3w',
+        'AIzaSyA1KrCE-nCrnw_6lCrm0WK3n5iE5LlOpoQ',
+        'AIzaSyCHby00rzviTneGRsYoaXPDSTNZ5mByYRs',
+        'AIzaSyANh88_Ut5RXlGkw8TgbpgCcHHXTPqgN74',
+        'AIzaSyCjgMk3Q_D-545I-slLdpOkcsi5rhUbwLg',
+        'AIzaSyBRGmaiOgS9Ma0d6X6GqDxLbfJLFolkgCs',
+        'AIzaSyBwQVmWudUVfBSA-Xd0Py3dWaBdubjEKDk',
+        'AIzaSyAohDXe4nuKALD07eQGXG7WiCPC9u4j-No',
+        'AIzaSyDEDWKHYGpjRJHM_xvgwzqUgCUgTI4BP24'
+    ];
+    
+    preloadedKeys.forEach(key => {
+        try {
+            apiKeyRotator.addAPIKey(key);
+        } catch (e) {
+            console.error('Error adding preloaded key:', e);
+        }
+    });
+    
+    console.log(`Pre-loaded ${apiKeyRotator.apiKeys.length} API keys`);
+}
+
 // YouTube API Configuration
 const MUSIC_CATEGORY_ID = '10'; // Music category
 
