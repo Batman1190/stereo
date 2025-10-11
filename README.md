@@ -1,4 +1,4 @@
-# STEREO - Music Streaming Platform
+# Musika ni Rod - Music Streaming Platform
 
 A modern, Spotify-like music streaming web application that uses YouTube's API to fetch and play music videos. Features an animated cassette tape player for a nostalgic music experience.
 
@@ -153,7 +153,7 @@ When you play a song, you can view an animated cassette tape:
 
 ### File Structure
 ```
-STEREO/
+Musika ni Rod/
 ├── index.html          # Main HTML structure
 ├── styles.css          # All styling and animations
 ├── app.js              # Application logic and API integration

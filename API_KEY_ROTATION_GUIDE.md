@@ -2,7 +2,7 @@
 
 ## Overview
 
-The STEREO music streaming app now includes an intelligent API key rotation system that allows you to add multiple YouTube API keys and automatically manage quota usage across all of them.
+The Musika ni Rod music streaming app now includes an intelligent API key rotation system that allows you to add multiple YouTube API keys and automatically manage quota usage across all of them.
 
 ## Key Features
 
