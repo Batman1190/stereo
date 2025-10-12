@@ -373,8 +373,31 @@ class PlaylistManager {
         } else {
             container.innerHTML = `
                 <div style="padding-bottom: 20px;">
-                    <h2 style="margin-bottom: 8px;">${playlist.name}</h2>
-                    <p style="color: var(--text-secondary); margin-bottom: 20px;">${playlist.description || 'No description'}</p>
+                    <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 16px; margin-bottom: 16px;">
+                        <div style="flex: 1; min-width: 200px;">
+                            <h2 style="margin-bottom: 8px;">${playlist.name}</h2>
+                            <p style="color: var(--text-secondary); margin-bottom: 8px;">${playlist.description || 'No description'}</p>
+                            <p style="color: var(--text-secondary); font-size: 14px;">${playlist.tracks.length} song${playlist.tracks.length !== 1 ? 's' : ''}</p>
+                        </div>
+                        <div style="display: flex; gap: 12px; align-items: center;">
+                            <button class="btn-primary" id="playAllBtn" style="display: flex; align-items: center; gap: 8px;">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                                    <polygon points="5 3 19 12 5 21 5 3"/>
+                                </svg>
+                                Play All
+                            </button>
+                            <button class="btn-secondary" id="shufflePlaylistBtn" style="display: flex; align-items: center; gap: 8px;">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <polyline points="16 3 21 3 21 8"/>
+                                    <line x1="4" y1="20" x2="21" y2="3"/>
+                                    <polyline points="21 16 21 21 16 21"/>
+                                    <line x1="15" y1="15" x2="21" y2="21"/>
+                                    <line x1="4" y1="4" x2="9" y2="9"/>
+                                </svg>
+                                Shuffle
+                            </button>
+                        </div>
+                    </div>
                 </div>
             `;
             
@@ -382,7 +405,45 @@ class PlaylistManager {
             gridContainer.className = 'music-grid';
             displayMusicCards(playlist.tracks, gridContainer, playlistId);
             container.appendChild(gridContainer);
+
+            // Add event listeners for play buttons
+            document.getElementById('playAllBtn').addEventListener('click', () => {
+                this.playPlaylist(playlistId, false);
+            });
+
+            document.getElementById('shufflePlaylistBtn').addEventListener('click', () => {
+                this.playPlaylist(playlistId, true);
+            });
         }
+    }
+
+    playPlaylist(playlistId, shuffle = false) {
+        const playlist = this.getPlaylist(playlistId);
+        if (!playlist || playlist.tracks.length === 0) return;
+
+        currentPlaylist = [...playlist.tracks];
+        
+        if (shuffle) {
+            // Shuffle the playlist
+            currentPlaylist = this.shuffleArray(currentPlaylist);
+            isShuffle = true;
+            document.getElementById('shuffleButton').classList.add('active');
+        } else {
+            isShuffle = false;
+            document.getElementById('shuffleButton').classList.remove('active');
+        }
+
+        currentTrackIndex = 0;
+        playTrack(currentPlaylist[0]);
+    }
+
+    shuffleArray(array) {
+        const shuffled = [...array];
+        for (let i = shuffled.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+        }
+        return shuffled;
     }
 
     editPlaylist(id) {
@@ -724,14 +785,25 @@ function displayMusicCards(musicList, container, playlistId = null) {
     musicList.forEach((music, index) => {
         const card = document.createElement('div');
         card.className = 'music-card';
-        card.innerHTML = `
-            <div class="music-card-menu">
-                <button class="music-card-menu-btn" title="Add to playlist">
+        
+        // Different button for playlist context vs general context
+        const menuButton = playlistId 
+            ? `<button class="music-card-menu-btn remove-btn" title="Remove from playlist">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="18" y1="6" x2="6" y2="18"/>
+                        <line x1="6" y1="6" x2="18" y2="18"/>
+                    </svg>
+                </button>`
+            : `<button class="music-card-menu-btn add-btn" title="Add to playlist">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <line x1="12" y1="5" x2="12" y2="19"/>
                         <line x1="5" y1="12" x2="19" y2="12"/>
                     </svg>
-                </button>
+                </button>`;
+        
+        card.innerHTML = `
+            <div class="music-card-menu">
+                ${menuButton}
             </div>
             <div class="music-card-image">
                 <img src="${music.thumbnail}" alt="${music.title}">
@@ -745,12 +817,25 @@ function displayMusicCards(musicList, container, playlistId = null) {
             <div class="music-card-artist">${music.artist}</div>
         `;
 
-        // Add to playlist button
+        // Menu button functionality
         const menuBtn = card.querySelector('.music-card-menu-btn');
-        menuBtn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            playlistManager.showAddToPlaylistModal(music);
-        });
+        if (playlistId) {
+            // Remove from playlist
+            menuBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                if (confirm('Remove this song from the playlist?')) {
+                    if (playlistManager.removeTrackFromPlaylist(playlistId, music.id)) {
+                        playlistManager.loadPlaylistView(playlistId);
+                    }
+                }
+            });
+        } else {
+            // Add to playlist
+            menuBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                playlistManager.showAddToPlaylistModal(music);
+            });
+        }
 
         // Play track on card click
         card.addEventListener('click', (e) => {
