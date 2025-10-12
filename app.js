@@ -205,6 +205,255 @@ let repeatMode = 0; // 0: off, 1: all, 2: one
 let recentlyPlayed = JSON.parse(localStorage.getItem('recently_played')) || [];
 let likedSongs = JSON.parse(localStorage.getItem('liked_songs')) || [];
 
+// Playlist Management System
+class PlaylistManager {
+    constructor() {
+        this.playlists = this.loadPlaylists();
+        this.currentPlaylistId = null;
+        this.pendingTrack = null; // Track to add when creating new playlist
+    }
+
+    loadPlaylists() {
+        const stored = localStorage.getItem('user_playlists');
+        if (stored) {
+            try {
+                return JSON.parse(stored);
+            } catch (e) {
+                console.error('Error loading playlists:', e);
+                return [];
+            }
+        }
+        return [];
+    }
+
+    savePlaylists() {
+        localStorage.setItem('user_playlists', JSON.stringify(this.playlists));
+        this.updatePlaylistDisplay();
+    }
+
+    createPlaylist(name, description = '') {
+        const playlist = {
+            id: Date.now().toString(),
+            name: name.trim(),
+            description: description.trim(),
+            tracks: [],
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString()
+        };
+        this.playlists.push(playlist);
+        this.savePlaylists();
+        return playlist;
+    }
+
+    getPlaylist(id) {
+        return this.playlists.find(p => p.id === id);
+    }
+
+    updatePlaylist(id, updates) {
+        const playlist = this.getPlaylist(id);
+        if (playlist) {
+            Object.assign(playlist, updates);
+            playlist.updatedAt = new Date().toISOString();
+            this.savePlaylists();
+            return true;
+        }
+        return false;
+    }
+
+    deletePlaylist(id) {
+        const index = this.playlists.findIndex(p => p.id === id);
+        if (index > -1) {
+            this.playlists.splice(index, 1);
+            this.savePlaylists();
+            return true;
+        }
+        return false;
+    }
+
+    addTrackToPlaylist(playlistId, track) {
+        const playlist = this.getPlaylist(playlistId);
+        if (playlist) {
+            // Check if track already exists
+            const exists = playlist.tracks.some(t => t.id === track.id);
+            if (!exists) {
+                playlist.tracks.push({
+                    id: track.id,
+                    title: track.title,
+                    artist: track.artist,
+                    thumbnail: track.thumbnail,
+                    addedAt: new Date().toISOString()
+                });
+                playlist.updatedAt = new Date().toISOString();
+                this.savePlaylists();
+                return true;
+            }
+        }
+        return false;
+    }
+
+    removeTrackFromPlaylist(playlistId, trackId) {
+        const playlist = this.getPlaylist(playlistId);
+        if (playlist) {
+            const index = playlist.tracks.findIndex(t => t.id === trackId);
+            if (index > -1) {
+                playlist.tracks.splice(index, 1);
+                playlist.updatedAt = new Date().toISOString();
+                this.savePlaylists();
+                return true;
+            }
+        }
+        return false;
+    }
+
+    updatePlaylistDisplay() {
+        const container = document.getElementById('playlistContainer');
+        if (this.playlists.length === 0) {
+            container.innerHTML = '<p style="color: var(--text-secondary); padding: 12px; font-size: 12px;">No playlists yet. Create one!</p>';
+            return;
+        }
+
+        container.innerHTML = '';
+        this.playlists.forEach(playlist => {
+            const item = document.createElement('div');
+            item.className = 'playlist-item';
+            if (this.currentPlaylistId === playlist.id) {
+                item.classList.add('active');
+            }
+            
+            item.innerHTML = `
+                <div class="playlist-item-info">
+                    <div class="playlist-item-name">${playlist.name}</div>
+                    <div class="playlist-item-count">${playlist.tracks.length} song${playlist.tracks.length !== 1 ? 's' : ''}</div>
+                </div>
+                <div class="playlist-item-actions">
+                    <button class="btn-icon" onclick="playlistManager.editPlaylist('${playlist.id}')" title="Edit">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                        </svg>
+                    </button>
+                    <button class="btn-icon" onclick="playlistManager.confirmDeletePlaylist('${playlist.id}')" title="Delete">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="3 6 5 6 21 6"/>
+                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                        </svg>
+                    </button>
+                </div>
+            `;
+
+            item.addEventListener('click', (e) => {
+                if (!e.target.closest('.playlist-item-actions')) {
+                    this.loadPlaylistView(playlist.id);
+                }
+            });
+
+            container.appendChild(item);
+        });
+    }
+
+    loadPlaylistView(playlistId) {
+        const playlist = this.getPlaylist(playlistId);
+        if (!playlist) return;
+
+        this.currentPlaylistId = playlistId;
+        this.updatePlaylistDisplay();
+
+        // Switch to library view and show playlist
+        switchView('library');
+        const container = document.getElementById('libraryContent');
+        
+        if (playlist.tracks.length === 0) {
+            container.innerHTML = `
+                <div style="padding: 20px;">
+                    <h2 style="margin-bottom: 8px;">${playlist.name}</h2>
+                    <p style="color: var(--text-secondary); margin-bottom: 20px;">${playlist.description || 'No description'}</p>
+                    <p style="color: var(--text-secondary);">This playlist is empty. Add some songs!</p>
+                </div>
+            `;
+        } else {
+            container.innerHTML = `
+                <div style="padding-bottom: 20px;">
+                    <h2 style="margin-bottom: 8px;">${playlist.name}</h2>
+                    <p style="color: var(--text-secondary); margin-bottom: 20px;">${playlist.description || 'No description'}</p>
+                </div>
+            `;
+            
+            const gridContainer = document.createElement('div');
+            gridContainer.className = 'music-grid';
+            displayMusicCards(playlist.tracks, gridContainer, playlistId);
+            container.appendChild(gridContainer);
+        }
+    }
+
+    editPlaylist(id) {
+        const playlist = this.getPlaylist(id);
+        if (!playlist) return;
+
+        document.getElementById('playlistModalTitle').textContent = 'Edit Playlist';
+        document.getElementById('playlistNameInput').value = playlist.name;
+        document.getElementById('playlistDescInput').value = playlist.description;
+        document.getElementById('playlistModal').classList.add('active');
+        document.getElementById('playlistModal').dataset.editId = id;
+    }
+
+    confirmDeletePlaylist(id) {
+        const playlist = this.getPlaylist(id);
+        if (playlist && confirm(`Delete playlist "${playlist.name}"?`)) {
+            this.deletePlaylist(id);
+            if (this.currentPlaylistId === id) {
+                this.currentPlaylistId = null;
+                updateLibrary();
+            }
+        }
+    }
+
+    showAddToPlaylistModal(track) {
+        this.pendingTrack = track;
+        const modal = document.getElementById('addToPlaylistModal');
+        const list = document.getElementById('playlistSelectionList');
+
+        if (this.playlists.length === 0) {
+            list.innerHTML = '<p style="color: var(--text-secondary); padding: 20px; text-align: center;">No playlists yet. Create one below!</p>';
+        } else {
+            list.innerHTML = '';
+            this.playlists.forEach(playlist => {
+                const item = document.createElement('div');
+                item.className = 'playlist-selection-item';
+                
+                const trackExists = playlist.tracks.some(t => t.id === track.id);
+                
+                item.innerHTML = `
+                    <div class="playlist-selection-item-info">
+                        <div class="playlist-selection-item-name">${playlist.name}</div>
+                        <div class="playlist-selection-item-count">${playlist.tracks.length} songs</div>
+                    </div>
+                    ${trackExists ? '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>' : ''}
+                `;
+
+                if (!trackExists) {
+                    item.addEventListener('click', () => {
+                        if (this.addTrackToPlaylist(playlist.id, track)) {
+                            modal.classList.remove('active');
+                            alert(`Added to "${playlist.name}"`);
+                        }
+                    });
+                } else {
+                    item.style.opacity = '0.5';
+                    item.style.cursor = 'default';
+                }
+
+                list.appendChild(item);
+            });
+        }
+
+        modal.classList.add('active');
+    }
+}
+
+// Create global playlist manager instance
+const playlistManager = new PlaylistManager();
+window.playlistManager = playlistManager;
+
 // Initialize YouTube Player API
 function onYouTubeIframeAPIReady() {
     player = new YT.Player('youtubePlayer', {
@@ -465,7 +714,7 @@ document.getElementById('searchInput').addEventListener('input', (e) => {
 });
 
 // Display Music Cards
-function displayMusicCards(musicList, container) {
+function displayMusicCards(musicList, container, playlistId = null) {
     if (musicList.length === 0) {
         container.innerHTML = '<p style="color: var(--text-secondary); padding: 20px;">No music found. Try a different search or check your API key.</p>';
         return;
@@ -476,6 +725,14 @@ function displayMusicCards(musicList, container) {
         const card = document.createElement('div');
         card.className = 'music-card';
         card.innerHTML = `
+            <div class="music-card-menu">
+                <button class="music-card-menu-btn" title="Add to playlist">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="12" y1="5" x2="12" y2="19"/>
+                        <line x1="5" y1="12" x2="19" y2="12"/>
+                    </svg>
+                </button>
+            </div>
             <div class="music-card-image">
                 <img src="${music.thumbnail}" alt="${music.title}">
                 <div class="play-overlay">
@@ -488,10 +745,20 @@ function displayMusicCards(musicList, container) {
             <div class="music-card-artist">${music.artist}</div>
         `;
 
-        card.addEventListener('click', () => {
-            currentPlaylist = musicList;
-            currentTrackIndex = index;
-            playTrack(music);
+        // Add to playlist button
+        const menuBtn = card.querySelector('.music-card-menu-btn');
+        menuBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            playlistManager.showAddToPlaylistModal(music);
+        });
+
+        // Play track on card click
+        card.addEventListener('click', (e) => {
+            if (!e.target.closest('.music-card-menu')) {
+                currentPlaylist = musicList;
+                currentTrackIndex = index;
+                playTrack(music);
+            }
         });
 
         container.appendChild(card);
@@ -824,6 +1091,80 @@ function updateLibrary() {
     }
 }
 
+// Playlist Modal Event Listeners
+document.getElementById('createPlaylistBtn').addEventListener('click', () => {
+    document.getElementById('playlistModalTitle').textContent = 'Create Playlist';
+    document.getElementById('playlistNameInput').value = '';
+    document.getElementById('playlistDescInput').value = '';
+    document.getElementById('playlistModal').classList.add('active');
+    delete document.getElementById('playlistModal').dataset.editId;
+    document.getElementById('playlistNameInput').focus();
+});
+
+document.getElementById('closePlaylistModal').addEventListener('click', () => {
+    document.getElementById('playlistModal').classList.remove('active');
+});
+
+document.getElementById('cancelPlaylistBtn').addEventListener('click', () => {
+    document.getElementById('playlistModal').classList.remove('active');
+});
+
+document.getElementById('savePlaylistBtn').addEventListener('click', () => {
+    const name = document.getElementById('playlistNameInput').value.trim();
+    const description = document.getElementById('playlistDescInput').value.trim();
+    const modal = document.getElementById('playlistModal');
+    const editId = modal.dataset.editId;
+
+    if (!name) {
+        alert('Please enter a playlist name');
+        return;
+    }
+
+    if (editId) {
+        // Update existing playlist
+        playlistManager.updatePlaylist(editId, { name, description });
+        alert('Playlist updated!');
+    } else {
+        // Create new playlist
+        const playlist = playlistManager.createPlaylist(name, description);
+        
+        // If there's a pending track, add it
+        if (playlistManager.pendingTrack) {
+            playlistManager.addTrackToPlaylist(playlist.id, playlistManager.pendingTrack);
+            playlistManager.pendingTrack = null;
+        }
+        
+        alert('Playlist created!');
+    }
+
+    modal.classList.remove('active');
+    delete modal.dataset.editId;
+});
+
+document.getElementById('closeAddToPlaylistModal').addEventListener('click', () => {
+    document.getElementById('addToPlaylistModal').classList.remove('active');
+    playlistManager.pendingTrack = null;
+});
+
+document.getElementById('createNewPlaylistFromAdd').addEventListener('click', () => {
+    document.getElementById('addToPlaylistModal').classList.remove('active');
+    document.getElementById('createPlaylistBtn').click();
+});
+
+// Close modals on background click
+document.getElementById('playlistModal').addEventListener('click', (e) => {
+    if (e.target.id === 'playlistModal') {
+        document.getElementById('playlistModal').classList.remove('active');
+    }
+});
+
+document.getElementById('addToPlaylistModal').addEventListener('click', (e) => {
+    if (e.target.id === 'addToPlaylistModal') {
+        document.getElementById('addToPlaylistModal').classList.remove('active');
+        playlistManager.pendingTrack = null;
+    }
+});
+
 // Initialize App
 window.addEventListener('load', () => {
     if (apiKeyRotator.apiKeys.length > 0) {
@@ -832,6 +1173,7 @@ window.addEventListener('load', () => {
     updateRecentlyPlayed();
     updateLibrary();
     updateAPIKeyDisplay();
+    playlistManager.updatePlaylistDisplay();
 });
 
 // Keyboard Shortcuts
