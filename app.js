@@ -515,6 +515,257 @@ class PlaylistManager {
 const playlistManager = new PlaylistManager();
 window.playlistManager = playlistManager;
 
+// Local File Management with IndexedDB
+class LocalFileManager {
+    constructor() {
+        this.db = null;
+        this.audioElement = null;
+        this.currentLocalTrack = null;
+        this.initDB();
+        this.initAudioElement();
+    }
+
+    initDB() {
+        const request = indexedDB.open('MusikaLocalFiles', 1);
+
+        request.onerror = () => {
+            console.error('IndexedDB failed to open');
+        };
+
+        request.onsuccess = (event) => {
+            this.db = event.target.result;
+            console.log('IndexedDB opened successfully');
+            this.loadLocalFiles();
+        };
+
+        request.onupgradeneeded = (event) => {
+            const db = event.target.result;
+            
+            if (!db.objectStoreNames.contains('audioFiles')) {
+                const objectStore = db.createObjectStore('audioFiles', { keyPath: 'id' });
+                objectStore.createIndex('title', 'title', { unique: false });
+                objectStore.createIndex('artist', 'artist', { unique: false });
+                objectStore.createIndex('addedAt', 'addedAt', { unique: false });
+            }
+        };
+    }
+
+    initAudioElement() {
+        this.audioElement = new Audio();
+        this.audioElement.addEventListener('ended', () => {
+            playNext();
+        });
+        this.audioElement.addEventListener('timeupdate', () => {
+            if (this.currentLocalTrack) {
+                this.updateLocalProgress();
+            }
+        });
+        this.audioElement.addEventListener('loadedmetadata', () => {
+            if (this.currentLocalTrack) {
+                updateVolumeDisplay();
+            }
+        });
+    }
+
+    async addFile(file) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            
+            reader.onload = async (e) => {
+                const audioData = e.target.result;
+                
+                // Extract metadata
+                const fileData = {
+                    id: Date.now().toString() + '_' + Math.random().toString(36).substr(2, 9),
+                    title: file.name.replace(/\.[^/.]+$/, ''), // Remove extension
+                    artist: 'Unknown Artist',
+                    fileName: file.name,
+                    fileType: file.type,
+                    fileSize: file.size,
+                    audioData: audioData,
+                    thumbnail: 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200"%3E%3Crect fill="%23282828" width="200" height="200"/%3E%3Cpath fill="%231db954" d="M100 50c-27.6 0-50 22.4-50 50s22.4 50 50 50 50-22.4 50-50-22.4-50-50-50zm0 80c-16.5 0-30-13.5-30-30s13.5-30 30-30 30 13.5 30 30-13.5 30-30 30z"/%3E%3Ccircle fill="%231db954" cx="100" cy="100" r="10"/%3E%3C/svg%3E',
+                    addedAt: new Date().toISOString(),
+                    duration: 0
+                };
+
+                const transaction = this.db.transaction(['audioFiles'], 'readwrite');
+                const objectStore = transaction.objectStore('audioFiles');
+                const request = objectStore.add(fileData);
+
+                request.onsuccess = () => {
+                    console.log('File added to IndexedDB:', fileData.title);
+                    resolve(fileData);
+                };
+
+                request.onerror = () => {
+                    console.error('Error adding file to IndexedDB');
+                    reject(request.error);
+                };
+            };
+
+            reader.onerror = () => {
+                reject(reader.error);
+            };
+
+            reader.readAsDataURL(file);
+        });
+    }
+
+    async getAllFiles() {
+        return new Promise((resolve, reject) => {
+            if (!this.db) {
+                resolve([]);
+                return;
+            }
+
+            const transaction = this.db.transaction(['audioFiles'], 'readonly');
+            const objectStore = transaction.objectStore('audioFiles');
+            const request = objectStore.getAll();
+
+            request.onsuccess = () => {
+                resolve(request.result);
+            };
+
+            request.onerror = () => {
+                reject(request.error);
+            };
+        });
+    }
+
+    async deleteFile(id) {
+        return new Promise((resolve, reject) => {
+            const transaction = this.db.transaction(['audioFiles'], 'readwrite');
+            const objectStore = transaction.objectStore('audioFiles');
+            const request = objectStore.delete(id);
+
+            request.onsuccess = () => {
+                resolve();
+            };
+
+            request.onerror = () => {
+                reject(request.error);
+            };
+        });
+    }
+
+    async loadLocalFiles() {
+        const files = await this.getAllFiles();
+        this.displayLocalFiles(files);
+    }
+
+    displayLocalFiles(files) {
+        const container = document.getElementById('localMusicContent');
+        
+        if (files.length === 0) {
+            container.innerHTML = '<p style="color: var(--text-secondary); padding: 20px;">No local files yet. Upload some music to play offline!</p>';
+            return;
+        }
+
+        container.innerHTML = '';
+        files.forEach((file, index) => {
+            const card = document.createElement('div');
+            card.className = 'music-card';
+            card.innerHTML = `
+                <div class="music-card-menu">
+                    <button class="music-card-menu-btn remove-btn" title="Delete file">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="3 6 5 6 21 6"/>
+                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                        </svg>
+                    </button>
+                </div>
+                <div class="music-card-image">
+                    <img src="${file.thumbnail}" alt="${file.title}">
+                    <div class="play-overlay">
+                        <svg viewBox="0 0 24 24" fill="currentColor">
+                            <polygon points="5 3 19 12 5 21 5 3"/>
+                        </svg>
+                    </div>
+                </div>
+                <div class="music-card-title">${file.title}</div>
+                <div class="music-card-artist">${file.artist}</div>
+                <div class="music-card-artist" style="font-size: 11px;">📁 ${(file.fileSize / 1024 / 1024).toFixed(2)} MB</div>
+            `;
+
+            // Delete button
+            const deleteBtn = card.querySelector('.music-card-menu-btn');
+            deleteBtn.addEventListener('click', async (e) => {
+                e.stopPropagation();
+                if (confirm(`Delete "${file.title}"?`)) {
+                    await this.deleteFile(file.id);
+                    await this.loadLocalFiles();
+                }
+            });
+
+            // Play file
+            card.addEventListener('click', (e) => {
+                if (!e.target.closest('.music-card-menu')) {
+                    currentPlaylist = files;
+                    currentTrackIndex = index;
+                    this.playLocalFile(file);
+                }
+            });
+
+            container.appendChild(card);
+        });
+    }
+
+    playLocalFile(file) {
+        // Stop YouTube player if playing
+        if (player && player.pauseVideo) {
+            player.pauseVideo();
+        }
+
+        this.currentLocalTrack = file;
+        this.audioElement.src = file.audioData;
+        this.audioElement.play();
+        
+        isPlaying = true;
+        updatePlayButton();
+        updateTrackInfo(file);
+        addToRecentlyPlayed(file);
+    }
+
+    updateLocalProgress() {
+        const currentTime = this.audioElement.currentTime;
+        const duration = this.audioElement.duration;
+
+        if (duration > 0) {
+            const progress = (currentTime / duration) * 100;
+            document.getElementById('progressFill').style.width = progress + '%';
+            document.getElementById('progressSlider').value = progress;
+            document.getElementById('currentTime').textContent = formatTime(currentTime);
+            document.getElementById('duration').textContent = formatTime(duration);
+        }
+    }
+
+    togglePlay() {
+        if (this.audioElement.paused) {
+            this.audioElement.play();
+            isPlaying = true;
+        } else {
+            this.audioElement.pause();
+            isPlaying = false;
+        }
+        updatePlayButton();
+    }
+
+    setVolume(volume) {
+        this.audioElement.volume = volume / 100;
+    }
+
+    seek(percentage) {
+        const duration = this.audioElement.duration;
+        if (duration > 0) {
+            this.audioElement.currentTime = (percentage / 100) * duration;
+        }
+    }
+}
+
+// Create global local file manager instance
+const localFileManager = new LocalFileManager();
+window.localFileManager = localFileManager;
+
 // Initialize YouTube Player API
 function onYouTubeIframeAPIReady() {
     player = new YT.Player('youtubePlayer', {
@@ -887,6 +1138,12 @@ function updateTrackInfo(track) {
 document.getElementById('playButton').addEventListener('click', togglePlay);
 
 function togglePlay() {
+    // Check if playing local file
+    if (localFileManager.currentLocalTrack) {
+        localFileManager.togglePlay();
+        return;
+    }
+
     if (!player || !player.getPlayerState) return;
 
     if (isPlaying) {
@@ -1024,10 +1281,18 @@ function updateProgress() {
 }
 
 document.getElementById('progressSlider').addEventListener('input', (e) => {
+    const percentage = e.target.value;
+    
+    // Seek local file if playing
+    if (localFileManager.currentLocalTrack) {
+        localFileManager.seek(percentage);
+        return;
+    }
+    
+    // Seek YouTube player
     if (!player || !player.getDuration) return;
-
     const duration = player.getDuration();
-    const seekTime = (e.target.value / 100) * duration;
+    const seekTime = (percentage / 100) * duration;
     player.seekTo(seekTime, true);
 });
 
@@ -1039,9 +1304,19 @@ function formatTime(seconds) {
 
 // Volume Control
 document.getElementById('volumeSlider').addEventListener('input', (e) => {
-    if (!player || !player.setVolume) return;
-    player.setVolume(e.target.value);
-    updateVolumeIcon(e.target.value);
+    const volume = e.target.value;
+    
+    // Set volume for local file if playing
+    if (localFileManager.currentLocalTrack) {
+        localFileManager.setVolume(volume);
+    }
+    
+    // Set volume for YouTube player
+    if (player && player.setVolume) {
+        player.setVolume(volume);
+    }
+    
+    updateVolumeIcon(volume);
 });
 
 document.getElementById('volumeButton').addEventListener('click', () => {
@@ -1249,6 +1524,97 @@ document.getElementById('addToPlaylistModal').addEventListener('click', (e) => {
         playlistManager.pendingTrack = null;
     }
 });
+
+// Local File Upload Event Listeners
+const fileInput = document.getElementById('fileInput');
+const uploadArea = document.getElementById('uploadArea');
+const browseFilesBtn = document.getElementById('browseFilesBtn');
+
+browseFilesBtn.addEventListener('click', () => {
+    fileInput.click();
+});
+
+uploadArea.addEventListener('click', (e) => {
+    if (e.target.id !== 'browseFilesBtn') {
+        fileInput.click();
+    }
+});
+
+fileInput.addEventListener('change', async (e) => {
+    const files = Array.from(e.target.files);
+    await handleFileUpload(files);
+    fileInput.value = ''; // Reset input
+});
+
+// Drag and drop
+uploadArea.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    uploadArea.classList.add('drag-over');
+});
+
+uploadArea.addEventListener('dragleave', () => {
+    uploadArea.classList.remove('drag-over');
+});
+
+uploadArea.addEventListener('drop', async (e) => {
+    e.preventDefault();
+    uploadArea.classList.remove('drag-over');
+    
+    const files = Array.from(e.dataTransfer.files).filter(file => 
+        file.type.startsWith('audio/')
+    );
+    
+    await handleFileUpload(files);
+});
+
+async function handleFileUpload(files) {
+    if (files.length === 0) {
+        alert('Please select audio files');
+        return;
+    }
+
+    const uploadStatus = document.createElement('div');
+    uploadStatus.style.cssText = 'position: fixed; top: 20px; right: 20px; background: var(--bg-secondary); padding: 16px 24px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.5); z-index: 2000;';
+    uploadStatus.innerHTML = `<p style="color: var(--text-primary);">Uploading ${files.length} file(s)...</p>`;
+    document.body.appendChild(uploadStatus);
+
+    let successCount = 0;
+    let errorCount = 0;
+
+    for (const file of files) {
+        try {
+            await localFileManager.addFile(file);
+            successCount++;
+        } catch (error) {
+            console.error('Error uploading file:', error);
+            errorCount++;
+        }
+    }
+
+    await localFileManager.loadLocalFiles();
+    
+    uploadStatus.innerHTML = `
+        <p style="color: var(--accent-primary);">✓ ${successCount} file(s) uploaded successfully!</p>
+        ${errorCount > 0 ? `<p style="color: #ff4444;">✗ ${errorCount} file(s) failed</p>` : ''}
+    `;
+    
+    setTimeout(() => {
+        uploadStatus.remove();
+    }, 3000);
+}
+
+// Register Service Worker
+if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/service-worker.js')
+            .then(registration => {
+                console.log('Service Worker registered:', registration);
+            })
+            .catch(error => {
+                console.log('Service Worker registration failed:', error);
+            });
+    });
+}
 
 // Initialize App
 window.addEventListener('load', () => {

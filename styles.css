@@ -998,6 +998,26 @@ body {
     background: rgba(255, 68, 68, 0.9);
 }
 
+/* Always show menu buttons on mobile/touch devices */
+@media (hover: none) and (pointer: coarse) {
+    .music-card-menu {
+        opacity: 1;
+    }
+
+    .music-card-menu-btn {
+        background: rgba(0, 0, 0, 0.8);
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    }
+
+    .music-card-menu-btn.remove-btn {
+        background: rgba(255, 68, 68, 0.85);
+    }
+
+    .music-card-menu-btn:active {
+        transform: scale(0.9);
+    }
+}
+
 /* API Key Management Modal */
 .api-modal {
     position: fixed;
@@ -1566,6 +1586,48 @@ body.menu-open {
     .sidebar {
         -webkit-overflow-scrolling: touch;
     }
+}
+
+/* Local Files Upload Section */
+.local-upload-section {
+    margin-bottom: 32px;
+}
+
+.upload-area {
+    border: 2px dashed var(--border-color);
+    border-radius: 12px;
+    padding: 48px 24px;
+    text-align: center;
+    background: var(--bg-secondary);
+    transition: all 0.3s;
+    cursor: pointer;
+}
+
+.upload-area:hover {
+    border-color: var(--accent-primary);
+    background: var(--bg-tertiary);
+}
+
+.upload-area.drag-over {
+    border-color: var(--accent-primary);
+    background: var(--bg-tertiary);
+    transform: scale(1.02);
+}
+
+.upload-area svg {
+    color: var(--text-secondary);
+    margin-bottom: 16px;
+}
+
+.upload-area h3 {
+    font-size: 20px;
+    font-weight: 600;
+    margin-bottom: 8px;
+}
+
+.upload-area p {
+    color: var(--text-secondary);
+    font-size: 14px;
 }
 
 /* High DPI Displays */
