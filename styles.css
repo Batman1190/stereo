@@ -1421,6 +1421,11 @@ body.menu-open {
         font-size: 20px;
     }
 
+    /* Ensure content area accounts for taller mobile player bar */
+    .app-container {
+        height: calc(var(--vh, 1vh) * 100 - 160px);
+    }
+
     .music-grid {
         grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
         gap: 10px;
