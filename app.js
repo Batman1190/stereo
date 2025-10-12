@@ -554,6 +554,12 @@ class LocalFileManager {
 
     initAudioElement() {
         this.audioElement = new Audio();
+        
+        // Mobile browser compatibility attributes
+        this.audioElement.setAttribute('playsinline', 'true');
+        this.audioElement.setAttribute('webkit-playsinline', 'true');
+        this.audioElement.preload = 'metadata';
+        
         this.audioElement.addEventListener('ended', () => {
             playNext();
         });
@@ -570,6 +576,16 @@ class LocalFileManager {
         // Add error handler to auto-skip to next track on playback errors
         this.audioElement.addEventListener('error', (e) => {
             console.error('Audio playback error:', e);
+            const error = this.audioElement.error;
+            if (error) {
+                const errorMessages = {
+                    1: 'Audio loading aborted',
+                    2: 'Network error while loading audio',
+                    3: 'Audio decoding failed',
+                    4: 'Audio format not supported'
+                };
+                console.error(`Audio Error (${error.code}): ${errorMessages[error.code] || 'Unknown error'}`);
+            }
             if (typeof showNotification === 'function') {
                 showNotification('Error playing track, skipping to next...', 'error', 2000);
             }
@@ -577,6 +593,21 @@ class LocalFileManager {
             setTimeout(() => {
                 playNext();
             }, 500);
+        });
+        
+        // Add stalled event handler (for buffering issues)
+        this.audioElement.addEventListener('stalled', () => {
+            console.warn('Audio playback stalled, attempting recovery...');
+        });
+        
+        // Add waiting event handler
+        this.audioElement.addEventListener('waiting', () => {
+            console.log('Audio buffering...');
+        });
+        
+        // Add canplay event handler
+        this.audioElement.addEventListener('canplay', () => {
+            console.log('Audio can play');
         });
     }
 
@@ -810,9 +841,14 @@ function onYouTubeIframeAPIReady() {
         height: '0',
         width: '0',
         playerVars: {
-            'playsinline': 1,
+            'playsinline': 1,           // Required for iOS inline playback
             'controls': 0,
-            'modestbranding': 1
+            'modestbranding': 1,
+            'rel': 0,                   // Don't show related videos
+            'fs': 0,                    // Hide fullscreen button on mobile
+            'enablejsapi': 1,           // Enable JavaScript API
+            'origin': window.location.origin,  // Security requirement
+            'widget_referrer': window.location.origin
         },
         events: {
             'onReady': onPlayerReady,
@@ -825,6 +861,22 @@ function onYouTubeIframeAPIReady() {
 function onPlayerReady(event) {
     console.log('YouTube Player Ready');
     updateVolumeDisplay();
+    
+    // Mobile browser compatibility: Try to mute initially to allow autoplay
+    if (isMobileDevice()) {
+        try {
+            player.mute();
+            console.log('Player muted for mobile compatibility');
+        } catch (e) {
+            console.warn('Could not mute player:', e);
+        }
+    }
+}
+
+// Mobile device detection
+function isMobileDevice() {
+    return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
+           (navigator.maxTouchPoints && navigator.maxTouchPoints > 2);
 }
 
 function onPlayerStateChange(event) {
@@ -998,6 +1050,92 @@ function initMediaSessionHandlers() {
 
 // Initialize Media Session handlers on app load
 initMediaSessionHandlers();
+
+// ============================================
+// MOBILE BROWSER COMPATIBILITY INITIALIZATION
+// ============================================
+
+/**
+ * Initialize mobile-specific compatibility features
+ * Handles iOS audio restrictions and mobile browser quirks
+ */
+function initMobileBrowserCompatibility() {
+    if (!isMobileDevice()) {
+        console.log('Desktop browser detected, skipping mobile-specific initialization');
+        return;
+    }
+    
+    console.log('Mobile browser detected, initializing mobile compatibility features...');
+    
+    // iOS requires user interaction before audio can play
+    // Create a one-time unlock function
+    let audioUnlocked = false;
+    
+    const unlockAudio = () => {
+        if (audioUnlocked) return;
+        
+        console.log('Attempting to unlock audio for mobile...');
+        
+        // Unlock YouTube player
+        if (player && player.playVideo && player.pauseVideo) {
+            try {
+                player.mute();
+                player.playVideo();
+                setTimeout(() => {
+                    player.pauseVideo();
+                    player.unMute();
+                }, 100);
+                console.log('YouTube player audio unlocked');
+            } catch (e) {
+                console.warn('Could not unlock YouTube player:', e);
+            }
+        }
+        
+        // Unlock local audio element
+        if (localFileManager && localFileManager.audioElement) {
+            try {
+                const audio = localFileManager.audioElement;
+                audio.muted = true;
+                const playPromise = audio.play();
+                if (playPromise !== undefined) {
+                    playPromise.then(() => {
+                        audio.pause();
+                        audio.currentTime = 0;
+                        audio.muted = false;
+                        console.log('Local audio unlocked');
+                    }).catch(e => {
+                        console.warn('Could not unlock local audio:', e);
+                    });
+                }
+            } catch (e) {
+                console.warn('Error unlocking local audio:', e);
+            }
+        }
+        
+        audioUnlocked = true;
+        
+        // Remove listeners after first unlock
+        document.removeEventListener('touchstart', unlockAudio);
+        document.removeEventListener('touchend', unlockAudio);
+        document.removeEventListener('click', unlockAudio);
+    };
+    
+    // Listen for first user interaction
+    document.addEventListener('touchstart', unlockAudio, { once: true, passive: true });
+    document.addEventListener('touchend', unlockAudio, { once: true, passive: true });
+    document.addEventListener('click', unlockAudio, { once: true });
+    
+    console.log('Mobile audio unlock listeners attached');
+}
+
+// Initialize mobile compatibility when DOM is ready
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => {
+        setTimeout(initMobileBrowserCompatibility, 1000);
+    });
+} else {
+    setTimeout(initMobileBrowserCompatibility, 1000);
+}
 
 // API Key Management
 document.getElementById('saveApiKey').addEventListener('click', () => {
@@ -1304,11 +1442,34 @@ function playTrack(track) {
         return;
     }
 
-    player.loadVideoById(track.id);
-    updateTrackInfo(track);
-    addToRecentlyPlayed(track);
-    isPlaying = true;
-    updatePlayButton();
+    try {
+        // Stop local audio if playing
+        if (localFileManager.currentLocalTrack) {
+            localFileManager.audioElement.pause();
+            localFileManager.currentLocalTrack = null;
+        }
+        
+        player.loadVideoById(track.id);
+        updateTrackInfo(track);
+        addToRecentlyPlayed(track);
+        
+        // Handle mobile autoplay restrictions
+        if (isMobileDevice()) {
+            // Attempt to play with promise handling
+            setTimeout(() => {
+                if (player && player.playVideo) {
+                    player.playVideo();
+                }
+            }, 100);
+        }
+        
+        isPlaying = true;
+        updatePlayButton();
+    } catch (error) {
+        console.error('Error playing track:', error);
+        showNotification('Error loading track. Skipping...', 'error', 2000);
+        setTimeout(() => playNext(), 500);
+    }
 }
 
 // Update Track Info
