@@ -354,8 +354,8 @@
         </div>
     </div>
 
-    <!-- Hidden YouTube Player -->
-    <div id="youtubePlayer" style="display: none;"></div>
+    <!-- Hidden YouTube Player (must be visible for background playback on mobile) -->
+    <div id="youtubePlayer" style="position: fixed; bottom: -100px; left: -100px; width: 1px; height: 1px; opacity: 0.01; pointer-events: none; z-index: -1;"></div>
 
     <!-- Mobile Sidebar Overlay -->
     <div class="sidebar-overlay" id="sidebarOverlay"></div>

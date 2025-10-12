@@ -838,8 +838,8 @@ window.localFileManager = localFileManager;
 // Initialize YouTube Player API
 function onYouTubeIframeAPIReady() {
     player = new YT.Player('youtubePlayer', {
-        height: '0',
-        width: '0',
+        height: '1',     // Minimum size (not 0) for background playback on mobile
+        width: '1',      // Minimum size (not 0) for background playback on mobile
         playerVars: {
             'playsinline': 1,           // Required for iOS inline playback
             'controls': 0,
@@ -848,7 +848,8 @@ function onYouTubeIframeAPIReady() {
             'fs': 0,                    // Hide fullscreen button on mobile
             'enablejsapi': 1,           // Enable JavaScript API
             'origin': window.location.origin,  // Security requirement
-            'widget_referrer': window.location.origin
+            'widget_referrer': window.location.origin,
+            'autoplay': 0               // Don't autoplay
         },
         events: {
             'onReady': onPlayerReady,
@@ -1136,6 +1137,65 @@ if (document.readyState === 'loading') {
 } else {
     setTimeout(initMobileBrowserCompatibility, 1000);
 }
+
+// ============================================
+// PAGE VISIBILITY API - Background Playback Support
+// ============================================
+
+/**
+ * Handle page visibility changes for background playback
+ * Attempts to keep YouTube playback running when tab goes to background
+ */
+let wasPlayingBeforeHidden = false;
+
+document.addEventListener('visibilitychange', () => {
+    if (document.hidden) {
+        // Page is now hidden (background)
+        console.log('Page hidden - attempting to maintain playback');
+        
+        // Remember if we were playing
+        wasPlayingBeforeHidden = isPlaying;
+        
+        // For YouTube player, try to keep it playing
+        if (player && isPlaying && !localFileManager.currentLocalTrack) {
+            console.log('YouTube playing in background');
+            
+            // Update Media Session to indicate still playing
+            if ('mediaSession' in navigator) {
+                navigator.mediaSession.playbackState = 'playing';
+            }
+            
+            // On some browsers, the player may pause when hidden
+            // Try to resume after a short delay if it paused
+            setTimeout(() => {
+                if (player && player.getPlayerState && player.getPlayerState() === YT.PlayerState.PAUSED && wasPlayingBeforeHidden) {
+                    console.log('Attempting to resume YouTube playback in background');
+                    try {
+                        player.playVideo();
+                    } catch (e) {
+                        console.warn('Could not resume playback:', e);
+                    }
+                }
+            }, 500);
+        }
+        
+        // Local audio should continue playing automatically
+        if (localFileManager.currentLocalTrack && isPlaying) {
+            console.log('Local audio playing in background');
+            if ('mediaSession' in navigator) {
+                navigator.mediaSession.playbackState = 'playing';
+            }
+        }
+    } else {
+        // Page is now visible (foreground)
+        console.log('Page visible - resuming normal playback');
+        
+        // Update play button state
+        updatePlayButton();
+    }
+});
+
+console.log('Page Visibility API listener added for background playback');
 
 // API Key Management
 document.getElementById('saveApiKey').addEventListener('click', () => {
