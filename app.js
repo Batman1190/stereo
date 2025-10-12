@@ -459,12 +459,14 @@ class PlaylistManager {
 
     confirmDeletePlaylist(id) {
         const playlist = this.getPlaylist(id);
-        if (playlist && confirm(`Delete playlist "${playlist.name}"?`)) {
-            this.deletePlaylist(id);
-            if (this.currentPlaylistId === id) {
-                this.currentPlaylistId = null;
-                updateLibrary();
-            }
+        if (playlist) {
+            showConfirmDialog(`Delete playlist "${playlist.name}"?`, () => {
+                this.deletePlaylist(id);
+                if (this.currentPlaylistId === id) {
+                    this.currentPlaylistId = null;
+                    updateLibrary();
+                }
+            });
         }
     }
 
@@ -495,7 +497,7 @@ class PlaylistManager {
                     item.addEventListener('click', () => {
                         if (this.addTrackToPlaylist(playlist.id, track)) {
                             modal.classList.remove('active');
-                            alert(`Added to "${playlist.name}"`);
+                            showNotification(`Added to "${playlist.name}"`, 'success');
                         }
                     });
                 } else {
@@ -564,6 +566,17 @@ class LocalFileManager {
             if (this.currentLocalTrack) {
                 updateVolumeDisplay();
             }
+        });
+        // Add error handler to auto-skip to next track on playback errors
+        this.audioElement.addEventListener('error', (e) => {
+            console.error('Audio playback error:', e);
+            if (typeof showNotification === 'function') {
+                showNotification('Error playing track, skipping to next...', 'error', 2000);
+            }
+            // Automatically skip to next track
+            setTimeout(() => {
+                playNext();
+            }, 500);
         });
     }
 
@@ -691,10 +704,10 @@ class LocalFileManager {
             const deleteBtn = card.querySelector('.music-card-menu-btn');
             deleteBtn.addEventListener('click', async (e) => {
                 e.stopPropagation();
-                if (confirm(`Delete "${file.title}"?`)) {
+                showConfirmDialog(`Delete "${file.title}"?`, async () => {
                     await this.deleteFile(file.id);
                     await this.loadLocalFiles();
-                }
+                });
             });
 
             // Play file
@@ -725,6 +738,10 @@ class LocalFileManager {
             playPromise.then(() => {
                 isPlaying = true;
                 updatePlayButton();
+                // Update Media Session playback state
+                if ('mediaSession' in navigator) {
+                    navigator.mediaSession.playbackState = 'playing';
+                }
             }).catch(error => {
                 console.warn('Autoplay prevented:', error);
                 if (typeof showNotification === 'function') {
@@ -756,9 +773,17 @@ class LocalFileManager {
         if (this.audioElement.paused) {
             this.audioElement.play();
             isPlaying = true;
+            // Update Media Session playback state
+            if ('mediaSession' in navigator) {
+                navigator.mediaSession.playbackState = 'playing';
+            }
         } else {
             this.audioElement.pause();
             isPlaying = false;
+            // Update Media Session playback state
+            if ('mediaSession' in navigator) {
+                navigator.mediaSession.playbackState = 'paused';
+            }
         }
         updatePlayButton();
     }
@@ -791,7 +816,8 @@ function onYouTubeIframeAPIReady() {
         },
         events: {
             'onReady': onPlayerReady,
-            'onStateChange': onPlayerStateChange
+            'onStateChange': onPlayerStateChange,
+            'onError': onPlayerError
         }
     });
 }
@@ -809,12 +835,169 @@ function onPlayerStateChange(event) {
         updatePlayButton();
         startProgressUpdate();
         startCassetteAnimation();
+        // Update Media Session playback state
+        if ('mediaSession' in navigator) {
+            navigator.mediaSession.playbackState = 'playing';
+        }
     } else if (event.data === YT.PlayerState.PAUSED) {
         isPlaying = false;
         updatePlayButton();
         stopCassetteAnimation();
+        // Update Media Session playback state
+        if ('mediaSession' in navigator) {
+            navigator.mediaSession.playbackState = 'paused';
+        }
     }
 }
+
+// Handle YouTube player errors and auto-skip to next track
+function onPlayerError(event) {
+    console.error('YouTube player error:', event.data);
+    const errorMessages = {
+        2: 'Invalid video ID',
+        5: 'HTML5 player error',
+        100: 'Video not found or private',
+        101: 'Video not allowed to be embedded',
+        150: 'Video not allowed to be embedded'
+    };
+    
+    const errorMsg = errorMessages[event.data] || 'Unknown error';
+    console.error(`YouTube Error (${event.data}): ${errorMsg}`);
+    
+    if (typeof showNotification === 'function') {
+        showNotification('Error playing video, skipping to next...', 'error', 2000);
+    }
+    
+    // Automatically skip to next track after a brief delay
+    setTimeout(() => {
+        playNext();
+    }, 500);
+}
+
+// ============================================
+// MEDIA SESSION API - Background Playback Support
+// ============================================
+
+/**
+ * Update Media Session metadata for background playback
+ * Enables media controls in notification panel and lock screen on mobile
+ */
+function updateMediaSession(track) {
+    if ('mediaSession' in navigator) {
+        try {
+            navigator.mediaSession.metadata = new MediaMetadata({
+                title: track.title || 'Unknown Title',
+                artist: track.artist || 'Unknown Artist',
+                album: 'Musika ni Rod',
+                artwork: [
+                    { src: track.thumbnail || '', sizes: '96x96', type: 'image/jpeg' },
+                    { src: track.thumbnail || '', sizes: '128x128', type: 'image/jpeg' },
+                    { src: track.thumbnail || '', sizes: '192x192', type: 'image/jpeg' },
+                    { src: track.thumbnail || '', sizes: '256x256', type: 'image/jpeg' },
+                    { src: track.thumbnail || '', sizes: '384x384', type: 'image/jpeg' },
+                    { src: track.thumbnail || '', sizes: '512x512', type: 'image/jpeg' }
+                ]
+            });
+            
+            console.log('Media Session updated:', track.title);
+        } catch (error) {
+            console.warn('Failed to update Media Session:', error);
+        }
+    }
+}
+
+/**
+ * Initialize Media Session action handlers
+ * Enables hardware media keys and notification controls
+ */
+function initMediaSessionHandlers() {
+    if ('mediaSession' in navigator) {
+        try {
+            // Play action
+            navigator.mediaSession.setActionHandler('play', () => {
+                console.log('Media Session: Play action');
+                if (localFileManager.currentLocalTrack) {
+                    localFileManager.audioElement.play();
+                    isPlaying = true;
+                    updatePlayButton();
+                } else if (player && player.playVideo) {
+                    player.playVideo();
+                }
+            });
+
+            // Pause action
+            navigator.mediaSession.setActionHandler('pause', () => {
+                console.log('Media Session: Pause action');
+                if (localFileManager.currentLocalTrack) {
+                    localFileManager.audioElement.pause();
+                    isPlaying = false;
+                    updatePlayButton();
+                } else if (player && player.pauseVideo) {
+                    player.pauseVideo();
+                }
+            });
+
+            // Previous track
+            navigator.mediaSession.setActionHandler('previoustrack', () => {
+                console.log('Media Session: Previous track action');
+                playPrevious();
+            });
+
+            // Next track
+            navigator.mediaSession.setActionHandler('nexttrack', () => {
+                console.log('Media Session: Next track action');
+                playNext();
+            });
+
+            // Seek backward (optional)
+            navigator.mediaSession.setActionHandler('seekbackward', (details) => {
+                console.log('Media Session: Seek backward action');
+                const seekTime = details.seekOffset || 10;
+                if (localFileManager.currentLocalTrack) {
+                    localFileManager.audioElement.currentTime = Math.max(0, localFileManager.audioElement.currentTime - seekTime);
+                } else if (player && player.getCurrentTime) {
+                    const currentTime = player.getCurrentTime();
+                    player.seekTo(Math.max(0, currentTime - seekTime));
+                }
+            });
+
+            // Seek forward (optional)
+            navigator.mediaSession.setActionHandler('seekforward', (details) => {
+                console.log('Media Session: Seek forward action');
+                const seekTime = details.seekOffset || 10;
+                if (localFileManager.currentLocalTrack) {
+                    const duration = localFileManager.audioElement.duration;
+                    localFileManager.audioElement.currentTime = Math.min(duration, localFileManager.audioElement.currentTime + seekTime);
+                } else if (player && player.getCurrentTime && player.getDuration) {
+                    const currentTime = player.getCurrentTime();
+                    const duration = player.getDuration();
+                    player.seekTo(Math.min(duration, currentTime + seekTime));
+                }
+            });
+
+            // Seek to (optional - for progress bar in notifications)
+            navigator.mediaSession.setActionHandler('seekto', (details) => {
+                console.log('Media Session: Seek to action', details.seekTime);
+                if (details.seekTime) {
+                    if (localFileManager.currentLocalTrack) {
+                        localFileManager.audioElement.currentTime = details.seekTime;
+                    } else if (player && player.seekTo) {
+                        player.seekTo(details.seekTime);
+                    }
+                }
+            });
+
+            console.log('Media Session handlers initialized for background playback');
+        } catch (error) {
+            console.warn('Failed to initialize Media Session handlers:', error);
+        }
+    } else {
+        console.log('Media Session API not supported in this browser');
+    }
+}
+
+// Initialize Media Session handlers on app load
+initMediaSessionHandlers();
 
 // API Key Management
 document.getElementById('saveApiKey').addEventListener('click', () => {
@@ -836,15 +1019,15 @@ document.getElementById('saveApiKey').addEventListener('click', () => {
         });
         
         if (addedCount > 0) {
-            alert(`Successfully added ${addedCount} API key(s)!${errorCount > 0 ? ` (${errorCount} duplicate(s) skipped)` : ''}`);
+            showNotification(`Successfully added ${addedCount} API key(s)!${errorCount > 0 ? ` (${errorCount} duplicate(s) skipped)` : ''}`, 'success');
             document.getElementById('apiKeyInput').value = '';
             loadTrendingMusic();
             updateAPIKeyDisplay();
         } else {
-            alert('No new API keys were added. They may already exist.');
+            showNotification('No new API keys were added. They may already exist.', 'warning');
         }
     } else {
-        alert('Please enter at least one valid API key');
+        showNotification('Please enter at least one valid API key', 'warning');
     }
 });
 
@@ -944,11 +1127,11 @@ function updateAPIKeyManagementModal() {
 
 // Remove API Key
 function removeAPIKey(key) {
-    if (confirm('Are you sure you want to remove this API key?')) {
+    showConfirmDialog('Are you sure you want to remove this API key?', () => {
         apiKeyRotator.removeKey(key);
         updateAPIKeyManagementModal();
         updateAPIKeyDisplay();
-    }
+    });
 }
 
 // Make removeAPIKey global
@@ -987,7 +1170,7 @@ async function fetchMusicVideos(query = '', maxResults = 20) {
                 return fetchMusicVideos(query, maxResults);
             }
             
-            alert('Error fetching music: ' + data.error.message);
+            showNotification('Error fetching music: ' + data.error.message, 'error');
             return [];
         }
 
@@ -1000,10 +1183,10 @@ async function fetchMusicVideos(query = '', maxResults = 20) {
         }));
     } catch (error) {
         if (error.message === 'No available API keys') {
-            alert('Please add at least one YouTube API key to start using the app.');
+            showNotification('Please add at least one YouTube API key to start using the app.', 'warning');
         } else {
             console.error('Error fetching music:', error);
-            alert('Error fetching music. Please check your API keys and internet connection.');
+            showNotification('Error fetching music. Please check your API keys and internet connection.', 'error');
         }
         return [];
     }
@@ -1087,11 +1270,11 @@ function displayMusicCards(musicList, container, playlistId = null) {
             // Remove from playlist
             menuBtn.addEventListener('click', (e) => {
                 e.stopPropagation();
-                if (confirm('Remove this song from the playlist?')) {
+                showConfirmDialog('Remove this song from the playlist?', () => {
                     if (playlistManager.removeTrackFromPlaylist(playlistId, music.id)) {
                         playlistManager.loadPlaylistView(playlistId);
                     }
-                }
+                });
             });
         } else {
             // Add to playlist
@@ -1117,7 +1300,7 @@ function displayMusicCards(musicList, container, playlistId = null) {
 // Play Track
 function playTrack(track) {
     if (!player || !player.loadVideoById) {
-        alert('Player not ready. Please wait a moment and try again.');
+        showNotification('Player not ready. Please wait a moment and try again.', 'warning');
         return;
     }
 
@@ -1145,6 +1328,9 @@ function updateTrackInfo(track) {
         likeButton.classList.remove('active');
         likeButton.querySelector('svg').setAttribute('fill', 'none');
     }
+    
+    // Update Media Session for background playback (mobile)
+    updateMediaSession(track);
 }
 
 // Player Controls
@@ -1492,14 +1678,14 @@ document.getElementById('savePlaylistBtn').addEventListener('click', () => {
     const editId = modal.dataset.editId;
 
     if (!name) {
-        alert('Please enter a playlist name');
+        showNotification('Please enter a playlist name', 'warning');
         return;
     }
 
     if (editId) {
         // Update existing playlist
         playlistManager.updatePlaylist(editId, { name, description });
-        alert('Playlist updated!');
+        showNotification('Playlist updated!', 'success');
     } else {
         // Create new playlist
         const playlist = playlistManager.createPlaylist(name, description);
@@ -1510,7 +1696,7 @@ document.getElementById('savePlaylistBtn').addEventListener('click', () => {
             playlistManager.pendingTrack = null;
         }
         
-        alert('Playlist created!');
+        showNotification('Playlist created!', 'success');
     }
 
     modal.classList.remove('active');
@@ -1585,7 +1771,7 @@ uploadArea.addEventListener('drop', async (e) => {
 
 async function handleFileUpload(files) {
     if (files.length === 0) {
-        alert('Please select audio files');
+        showNotification('Please select audio files', 'warning');
         return;
     }
 

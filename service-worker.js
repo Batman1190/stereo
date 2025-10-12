@@ -1,12 +1,13 @@
 // Service Worker for Musika ni Rod
 // Enables offline functionality and PWA capabilities
 
-const CACHE_NAME = 'musika-ni-rod-v1';
+const CACHE_NAME = 'musika-ni-rod-v1.1';
 const urlsToCache = [
     '/',
     '/index.html',
     '/styles.css',
     '/app.js',
+    '/utils.js',
     'https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap'
 ];
 

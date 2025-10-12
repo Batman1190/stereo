@@ -1,12 +1,12 @@
 {
   "name": "Musika ni Rod",
   "short_name": "Musika",
-  "description": "Music streaming and offline playback app",
-  "start_url": "/index.html",
+  "description": "Music streaming and offline playback app with background playback support",
+  "start_url": "./",
   "display": "standalone",
   "background_color": "#121212",
   "theme_color": "#121212",
-  "orientation": "portrait-primary",
+  "orientation": "any",
   "icons": [
     {
       "src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'%3E%3Ccircle cx='96' cy='96' r='88' fill='%231db954'/%3E%3Cpath d='M72 60L144 96L72 132V60Z' fill='%23121212'/%3E%3C/svg%3E",
