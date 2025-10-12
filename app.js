@@ -667,7 +667,7 @@ class LocalFileManager {
             card.className = 'music-card';
             card.innerHTML = `
                 <div class="music-card-menu">
-                    <button class="music-card-menu-btn remove-btn" title="Delete file">
+                    <button class="music-card-menu-btn remove-btn" title="Delete file" aria-label="Delete ${sanitizeHTML(file.title)}">
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <polyline points="3 6 5 6 21 6"/>
                             <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
@@ -675,15 +675,15 @@ class LocalFileManager {
                     </button>
                 </div>
                 <div class="music-card-image">
-                    <img src="${file.thumbnail}" alt="${file.title}">
+                    <img src="${file.thumbnail}" alt="${sanitizeHTML(file.title)}" loading="lazy">
                     <div class="play-overlay">
                         <svg viewBox="0 0 24 24" fill="currentColor">
                             <polygon points="5 3 19 12 5 21 5 3"/>
                         </svg>
                     </div>
                 </div>
-                <div class="music-card-title">${file.title}</div>
-                <div class="music-card-artist">${file.artist}</div>
+                <div class="music-card-title">${sanitizeHTML(file.title)}</div>
+                <div class="music-card-artist">${sanitizeHTML(file.artist)}</div>
                 <div class="music-card-artist" style="font-size: 11px;">📁 ${(file.fileSize / 1024 / 1024).toFixed(2)} MB</div>
             `;
 
@@ -718,10 +718,23 @@ class LocalFileManager {
 
         this.currentLocalTrack = file;
         this.audioElement.src = file.audioData;
-        this.audioElement.play();
         
-        isPlaying = true;
-        updatePlayButton();
+        // Handle autoplay restrictions (especially on iOS)
+        const playPromise = this.audioElement.play();
+        if (playPromise !== undefined) {
+            playPromise.then(() => {
+                isPlaying = true;
+                updatePlayButton();
+            }).catch(error => {
+                console.warn('Autoplay prevented:', error);
+                if (typeof showNotification === 'function') {
+                    showNotification('Click play to start audio', 'info', 2000);
+                }
+                isPlaying = false;
+                updatePlayButton();
+            });
+        }
+        
         updateTrackInfo(file);
         addToRecentlyPlayed(file);
     }
@@ -846,7 +859,7 @@ document.getElementById('closeApiModal').addEventListener('click', () => {
 });
 
 document.getElementById('apiModal').addEventListener('click', (e) => {
-    if (e.target.id === 'apiModal') {
+    if (e.target === e.currentTarget) {
         document.getElementById('apiModal').classList.remove('active');
     }
 });
@@ -1057,15 +1070,15 @@ function displayMusicCards(musicList, container, playlistId = null) {
                 ${menuButton}
             </div>
             <div class="music-card-image">
-                <img src="${music.thumbnail}" alt="${music.title}">
+                <img src="${music.thumbnail}" alt="${sanitizeHTML(music.title)}" loading="lazy">
                 <div class="play-overlay">
                     <svg viewBox="0 0 24 24" fill="currentColor">
                         <polygon points="5 3 19 12 5 21 5 3"/>
                     </svg>
                 </div>
             </div>
-            <div class="music-card-title">${music.title}</div>
-            <div class="music-card-artist">${music.artist}</div>
+            <div class="music-card-title">${sanitizeHTML(music.title)}</div>
+            <div class="music-card-artist">${sanitizeHTML(music.artist)}</div>
         `;
 
         // Menu button functionality
@@ -1197,13 +1210,16 @@ function playNext() {
 // Shuffle
 document.getElementById('shuffleButton').addEventListener('click', () => {
     isShuffle = !isShuffle;
-    document.getElementById('shuffleButton').classList.toggle('active', isShuffle);
+    const shuffleBtn = document.getElementById('shuffleButton');
+    shuffleBtn.classList.toggle('active', isShuffle);
+    shuffleBtn.setAttribute('aria-pressed', isShuffle);
 });
 
 // Repeat
 document.getElementById('repeatButton').addEventListener('click', () => {
     repeatMode = (repeatMode + 1) % 3;
     const button = document.getElementById('repeatButton');
+    button.setAttribute('aria-pressed', repeatMode > 0);
 
     if (repeatMode === 0) {
         button.classList.remove('active');
@@ -1256,7 +1272,7 @@ let progressInterval;
 
 function startProgressUpdate() {
     stopProgressUpdate();
-    progressInterval = setInterval(updateProgress, 100);
+    progressInterval = setInterval(updateProgress, 250);
 }
 
 function stopProgressUpdate() {
@@ -1377,7 +1393,7 @@ document.getElementById('closeCassette').addEventListener('click', () => {
 });
 
 document.getElementById('cassetteModal').addEventListener('click', (e) => {
-    if (e.target.id === 'cassetteModal') {
+    if (e.target === e.currentTarget) {
         document.getElementById('cassetteModal').classList.remove('active');
     }
 });
@@ -1513,13 +1529,13 @@ document.getElementById('createNewPlaylistFromAdd').addEventListener('click', ()
 
 // Close modals on background click
 document.getElementById('playlistModal').addEventListener('click', (e) => {
-    if (e.target.id === 'playlistModal') {
+    if (e.target === e.currentTarget) {
         document.getElementById('playlistModal').classList.remove('active');
     }
 });
 
 document.getElementById('addToPlaylistModal').addEventListener('click', (e) => {
-    if (e.target.id === 'addToPlaylistModal') {
+    if (e.target === e.currentTarget) {
         document.getElementById('addToPlaylistModal').classList.remove('active');
         playlistManager.pendingTrack = null;
     }
@@ -1606,7 +1622,7 @@ async function handleFileUpload(files) {
 // Register Service Worker
 if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
-        navigator.serviceWorker.register('/service-worker.js')
+        navigator.serviceWorker.register('./service-worker.js')
             .then(registration => {
                 console.log('Service Worker registered:', registration);
             })
@@ -1629,8 +1645,13 @@ window.addEventListener('load', () => {
 
 // Keyboard Shortcuts
 document.addEventListener('keydown', (e) => {
+    // Don't trigger shortcuts when typing in inputs or textareas
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
+        return;
+    }
+    
     // Space bar to play/pause
-    if (e.code === 'Space' && e.target.tagName !== 'INPUT') {
+    if (e.code === 'Space') {
         e.preventDefault();
         togglePlay();
     }
@@ -1644,5 +1665,58 @@ document.addEventListener('keydown', (e) => {
     if (e.code === 'ArrowLeft' && player && player.getCurrentTime) {
         e.preventDefault();
         player.seekTo(player.getCurrentTime() - 5, true);
+    }
+    
+    // Arrow Up/Down for volume
+    if (e.code === 'ArrowUp') {
+        e.preventDefault();
+        const volumeSlider = document.getElementById('volumeSlider');
+        const newVolume = Math.min(100, parseInt(volumeSlider.value) + 5);
+        volumeSlider.value = newVolume;
+        if (player && player.setVolume) player.setVolume(newVolume);
+        if (localFileManager.currentLocalTrack) localFileManager.setVolume(newVolume);
+        updateVolumeIcon(newVolume);
+    }
+    
+    if (e.code === 'ArrowDown') {
+        e.preventDefault();
+        const volumeSlider = document.getElementById('volumeSlider');
+        const newVolume = Math.max(0, parseInt(volumeSlider.value) - 5);
+        volumeSlider.value = newVolume;
+        if (player && player.setVolume) player.setVolume(newVolume);
+        if (localFileManager.currentLocalTrack) localFileManager.setVolume(newVolume);
+        updateVolumeIcon(newVolume);
+    }
+    
+    // M for mute
+    if (e.code === 'KeyM') {
+        e.preventDefault();
+        document.getElementById('volumeButton').click();
+    }
+    
+    // N for next track
+    if (e.code === 'KeyN') {
+        e.preventDefault();
+        playNext();
+    }
+    
+    // P for previous track
+    if (e.code === 'KeyP') {
+        e.preventDefault();
+        playPrevious();
+    }
+    
+    // Escape to close modals
+    if (e.code === 'Escape') {
+        const modals = ['cassetteModal', 'playlistModal', 'addToPlaylistModal', 'apiModal'];
+        modals.forEach(modalId => {
+            const modal = document.getElementById(modalId);
+            if (modal && modal.classList.contains('active')) {
+                modal.classList.remove('active');
+                if (modalId === 'addToPlaylistModal') {
+                    playlistManager.pendingTrack = null;
+                }
+            }
+        });
     }
 });

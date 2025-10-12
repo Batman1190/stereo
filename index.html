@@ -14,6 +14,8 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 </head>
 <body>
+    <!-- Skip to main content for accessibility -->
+    <a href="#main-content" class="skip-to-content">Skip to main content</a>
     <!-- Mobile Menu Toggle -->
     <button class="mobile-menu-toggle" id="mobileMenuToggle" aria-label="Toggle menu">
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -82,14 +84,14 @@
         </aside>
 
         <!-- Main Content -->
-        <main class="main-content">
+        <main class="main-content" id="main-content" role="main">
             <div class="content-header">
                 <div class="search-bar">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
                         <circle cx="11" cy="11" r="8"/>
                         <path d="m21 21-4.35-4.35"/>
                     </svg>
-                    <input type="text" id="searchInput" placeholder="Search for music...">
+                    <input type="text" id="searchInput" placeholder="Search for music..." aria-label="Search for music">
                 </div>
                 <div class="api-key-section" style="display: none;">
                     <input type="password" id="apiKeyInput" placeholder="Enter YouTube API Key(s) - separate with commas">
@@ -151,7 +153,7 @@
     <div class="player-bar">
         <div class="player-track-info">
             <div class="track-thumbnail" id="trackThumbnail">
-                <img src="" alt="" id="trackImage">
+                <img src="" alt="Album artwork" id="trackImage" loading="lazy">
             </div>
             <div class="track-details">
                 <div class="track-title" id="trackTitle">No track playing</div>
@@ -165,8 +167,8 @@
         </div>
 
         <div class="player-controls">
-            <div class="control-buttons">
-                <button class="btn-icon" id="shuffleButton">
+            <div class="control-buttons" role="group" aria-label="Playback controls">
+                <button class="btn-icon" id="shuffleButton" aria-label="Toggle shuffle" aria-pressed="false">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <polyline points="16 3 21 3 21 8"/>
                         <line x1="4" y1="20" x2="21" y2="3"/>
@@ -175,24 +177,24 @@
                         <line x1="4" y1="4" x2="9" y2="9"/>
                     </svg>
                 </button>
-                <button class="btn-icon" id="prevButton">
+                <button class="btn-icon" id="prevButton" aria-label="Previous track">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <polygon points="19 20 9 12 19 4 19 20"/>
                         <line x1="5" y1="19" x2="5" y2="5"/>
                     </svg>
                 </button>
-                <button class="btn-play" id="playButton">
+                <button class="btn-play" id="playButton" aria-label="Play/Pause">
                     <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
                         <polygon points="5 3 19 12 5 21 5 3"/>
                     </svg>
                 </button>
-                <button class="btn-icon" id="nextButton">
+                <button class="btn-icon" id="nextButton" aria-label="Next track">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <polygon points="5 4 15 12 5 20 5 4"/>
                         <line x1="19" y1="5" x2="19" y2="19"/>
                     </svg>
                 </button>
-                <button class="btn-icon" id="repeatButton">
+                <button class="btn-icon" id="repeatButton" aria-label="Toggle repeat" aria-pressed="false">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <polyline points="17 1 21 5 17 9"/>
                         <path d="M3 11V9a4 4 0 0 1 4-4h14"/>
@@ -205,7 +207,7 @@
                 <span class="time" id="currentTime">0:00</span>
                 <div class="progress-track">
                     <div class="progress-fill" id="progressFill"></div>
-                    <input type="range" class="progress-slider" id="progressSlider" min="0" max="100" value="0">
+                    <input type="range" class="progress-slider" id="progressSlider" min="0" max="100" value="0" aria-label="Seek position">
                 </div>
                 <span class="time" id="duration">0:00</span>
             </div>
@@ -229,7 +231,7 @@
                         <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/>
                     </svg>
                 </button>
-                <input type="range" class="volume-slider" id="volumeSlider" min="0" max="100" value="70">
+                <input type="range" class="volume-slider" id="volumeSlider" min="0" max="100" value="70" aria-label="Volume control">
             </div>
             <button class="btn-icon" id="cassetteButton">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -359,6 +361,7 @@
     <div class="sidebar-overlay" id="sidebarOverlay"></div>
 
     <script src="https://www.youtube.com/iframe_api"></script>
+    <script src="utils.js"></script>
     <script src="app.js"></script>
     <script>
         // Mobile menu toggle functionality

@@ -27,7 +27,7 @@ body {
 
 .app-container {
     display: flex;
-    height: calc(100vh - 90px);
+    height: calc(var(--vh, 1vh) * 100 - 90px);
 }
 
 /* Sidebar */
@@ -1258,7 +1258,7 @@ body.menu-open {
     }
 
     .app-container {
-        height: calc(100vh - 140px);
+        height: calc(var(--vh, 1vh) * 100 - 140px);
     }
 
     .main-content {
@@ -1635,4 +1635,376 @@ body.menu-open {
     .music-card-image img {
         image-rendering: -webkit-optimize-contrast;
     }
+}
+
+/* ============================================
+   CUSTOM NOTIFICATIONS & DIALOGS
+   ============================================ */
+
+.custom-notification {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    padding: 16px 20px;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+    z-index: 10000;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-width: 280px;
+    max-width: 400px;
+    animation: slideIn 0.3s ease-out;
+    border-left: 4px solid var(--accent-primary);
+}
+
+.custom-notification.success {
+    border-left-color: var(--accent-primary);
+}
+
+.custom-notification.error {
+    border-left-color: #ff4444;
+}
+
+.custom-notification.warning {
+    border-left-color: #ffa500;
+}
+
+.custom-notification.info {
+    border-left-color: #4a9eff;
+}
+
+.notification-icon {
+    font-size: 20px;
+    font-weight: bold;
+    flex-shrink: 0;
+}
+
+.notification-message {
+    flex: 1;
+    font-size: 14px;
+    line-height: 1.4;
+}
+
+.notification-close {
+    background: none;
+    border: none;
+    color: var(--text-secondary);
+    font-size: 24px;
+    cursor: pointer;
+    padding: 0;
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 4px;
+    transition: all 0.2s;
+    flex-shrink: 0;
+}
+
+.notification-close:hover {
+    background: var(--bg-hover);
+    color: var(--text-primary);
+}
+
+.custom-notification.fade-out {
+    animation: slideOut 0.3s ease-out forwards;
+}
+
+@keyframes slideIn {
+    from {
+        transform: translateX(400px);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+@keyframes slideOut {
+    from {
+        transform: translateX(0);
+        opacity: 1;
+    }
+    to {
+        transform: translateX(400px);
+        opacity: 0;
+    }
+}
+
+/* Custom Confirm Dialog */
+.custom-confirm-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.8);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10001;
+    animation: fadeIn 0.2s ease-out;
+}
+
+.custom-confirm-dialog {
+    background: var(--bg-secondary);
+    border-radius: 12px;
+    padding: 24px;
+    max-width: 400px;
+    width: 90%;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+    animation: scaleIn 0.3s ease-out;
+}
+
+.confirm-message {
+    font-size: 16px;
+    line-height: 1.5;
+    margin-bottom: 24px;
+    color: var(--text-primary);
+}
+
+.confirm-actions {
+    display: flex;
+    gap: 12px;
+    justify-content: flex-end;
+}
+
+.confirm-actions button {
+    flex: 1;
+    max-width: 120px;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+@keyframes scaleIn {
+    from {
+        transform: scale(0.9);
+        opacity: 0;
+    }
+    to {
+        transform: scale(1);
+        opacity: 1;
+    }
+}
+
+/* ============================================
+   MOBILE VIEWPORT HEIGHT FIX
+   ============================================ */
+
+:root {
+    --vh: 1vh;
+}
+
+/* ============================================
+   BROWSER COMPATIBILITY FIXES
+   ============================================ */
+
+/* Backdrop filter fallback */
+.no-backdrop-filter .cassette-modal,
+.no-backdrop-filter .playlist-modal,
+.no-backdrop-filter .api-modal {
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+}
+
+.no-backdrop-filter .cassette-modal {
+    background: rgba(0, 0, 0, 0.95);
+}
+
+.no-backdrop-filter .playlist-modal,
+.no-backdrop-filter .api-modal {
+    background: rgba(0, 0, 0, 0.95);
+}
+
+/* Firefox scrollbar styling */
+* {
+    scrollbar-width: thin;
+    scrollbar-color: var(--bg-tertiary) var(--bg-primary);
+}
+
+/* Aspect ratio fallback for older browsers */
+@supports not (aspect-ratio: 1) {
+    .music-card-image {
+        position: relative;
+        padding-bottom: 100%;
+        height: 0;
+    }
+    
+    .music-card-image img {
+        position: absolute;
+        top: 0;
+        left: 0;
+    }
+    
+    .cassette-tape {
+        position: relative;
+        padding-bottom: 64%;
+        height: 0;
+    }
+}
+
+/* Progress slider visibility fix */
+.progress-slider {
+    opacity: 0;
+}
+
+.progress-slider:focus {
+    opacity: 1;
+    outline: 2px solid var(--accent-primary);
+    outline-offset: 2px;
+}
+
+.progress-track:hover .progress-slider,
+.progress-track:focus-within .progress-slider {
+    opacity: 0.3;
+}
+
+/* ============================================
+   ACCESSIBILITY IMPROVEMENTS
+   ============================================ */
+
+/* Focus visible for keyboard navigation */
+*:focus-visible {
+    outline: 2px solid var(--accent-primary);
+    outline-offset: 2px;
+}
+
+button:focus-visible,
+.nav-item:focus-visible {
+    outline: 2px solid var(--accent-primary);
+    outline-offset: -2px;
+}
+
+/* Skip to content link */
+.skip-to-content {
+    position: absolute;
+    top: -40px;
+    left: 0;
+    background: var(--accent-primary);
+    color: var(--text-primary);
+    padding: 8px 16px;
+    text-decoration: none;
+    z-index: 10002;
+    border-radius: 0 0 4px 0;
+}
+
+.skip-to-content:focus {
+    top: 0;
+}
+
+/* Screen reader only text */
+.sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border-width: 0;
+}
+
+/* ============================================
+   LOADING STATES
+   ============================================ */
+
+.skeleton {
+    background: linear-gradient(
+        90deg,
+        var(--bg-tertiary) 0%,
+        var(--bg-hover) 50%,
+        var(--bg-tertiary) 100%
+    );
+    background-size: 200% 100%;
+    animation: skeleton-loading 1.5s ease-in-out infinite;
+    border-radius: 4px;
+}
+
+@keyframes skeleton-loading {
+    0% {
+        background-position: 200% 0;
+    }
+    100% {
+        background-position: -200% 0;
+    }
+}
+
+.music-card.skeleton .music-card-image {
+    background: var(--bg-tertiary);
+}
+
+.music-card.skeleton .music-card-title,
+.music-card.skeleton .music-card-artist {
+    height: 16px;
+    background: var(--bg-tertiary);
+    border-radius: 4px;
+}
+
+/* ============================================
+   MOBILE NOTIFICATION ADJUSTMENTS
+   ============================================ */
+
+@media (max-width: 480px) {
+    .custom-notification {
+        top: 10px;
+        right: 10px;
+        left: 10px;
+        min-width: auto;
+        max-width: none;
+    }
+    
+    @keyframes slideIn {
+        from {
+            transform: translateY(-100px);
+            opacity: 0;
+        }
+        to {
+            transform: translateY(0);
+            opacity: 1;
+        }
+    }
+    
+    @keyframes slideOut {
+        from {
+            transform: translateY(0);
+            opacity: 1;
+        }
+        to {
+            transform: translateY(-100px);
+            opacity: 0;
+        }
+    }
+}
+
+/* ============================================
+   PERFORMANCE: Reduce animations on low-end devices
+   ============================================ */
+
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
+}
+
+/* ============================================
+   IMAGE LOADING OPTIMIZATION
+   ============================================ */
+
+.music-card-image img[src=""],
+.track-thumbnail img[src=""] {
+    background: var(--bg-tertiary);
+    display: block;
 }
