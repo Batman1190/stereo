@@ -1,10 +1,15 @@
 # Musika ni Rod - Music Streaming Platform
 
-A modern, Spotify-like music streaming web application that uses YouTube's API to fetch and play music videos. Features an animated cassette tape player for a nostalgic music experience.
+A modern, **Progressive Web App (PWA)** music streaming platform that combines YouTube music streaming with local file playback. Features an animated cassette tape player for a nostalgic music experience, full playlist management, and offline capabilities.
 
 ## Features
 
 - 🎵 **Music Streaming**: Stream music videos from YouTube with category filtering (Music category ID: 10)
+- 📁 **Local File Upload**: Upload and play your own music files (MP3, WAV, OGG, M4A) with drag-and-drop support
+- 📱 **PWA Support**: Install as a Progressive Web App with offline functionality
+- 🔌 **Offline Playback**: Play locally uploaded files without internet connection
+- 🎧 **Background Playback**: Continue playing music on mobile devices even when app is in background
+- 📋 **Playlist Management**: Create, edit, delete, and organize custom playlists
 - 🔑 **API Key Rotation**: Add multiple YouTube API keys for automatic rotation and quota management
 - 📊 **Quota Tracking**: Real-time monitoring of API usage across all keys
 - 🔍 **Search**: Search for your favorite music tracks
@@ -14,7 +19,7 @@ A modern, Spotify-like music streaming web application that uses YouTube's API t
 - 🔄 **Shuffle & Repeat**: Control playback with shuffle and repeat modes
 - ⏮️ **Playback Controls**: Play, pause, skip, and seek through tracks
 - 🔊 **Volume Control**: Adjust volume or mute audio
-- 📱 **Responsive Design**: Works on desktop and mobile devices
+- 📱 **Responsive Design**: Works on desktop and mobile devices with touch-friendly controls
 - 🎨 **Modern UI**: Clean, dark-themed interface inspired by Spotify
 
 ## Setup Instructions
@@ -68,6 +73,18 @@ A modern, Spotify-like music streaming web application that uses YouTube's API t
    - Click on any track to start playing
    - Click the cassette icon in the player bar to view the animated cassette tape
 
+4. **Upload local files (optional)**:
+   - Click "Local Files" in the sidebar
+   - Drag & drop music files or click "Browse Files"
+   - Supported formats: MP3, WAV, OGG, M4A
+   - Files are stored locally for offline playback
+
+5. **Install as PWA (optional)**:
+   - Look for the install prompt in your browser's address bar
+   - Or use browser menu: "Install app" / "Add to Home Screen"
+   - Once installed, the app works offline and can be launched like a native app
+   - Especially useful on mobile devices for background playback
+
 ## How It Works
 
 ### Music Category Filtering
@@ -90,6 +107,33 @@ The app features an intelligent API key rotation system:
 - Video details: 1 unit per request
 - Default daily limit: 10,000 units per key
 
+### Local File Storage
+
+The app uses IndexedDB to store your uploaded music files:
+- **Client-Side Only**: Files never leave your device
+- **Persistent Storage**: Files remain available even offline
+- **Metadata Extraction**: Automatically extracts title, artist from file tags
+- **Format Support**: MP3, WAV, OGG, and M4A audio files
+- **Storage Quota**: Subject to browser storage limits (typically 50MB-1GB+)
+
+### Playlist System
+
+Create and manage your own playlists:
+- **Local Storage**: Playlists saved in browser's localStorage
+- **Mixed Sources**: Add tracks from YouTube or local files to the same playlist
+- **Full Management**: Create, edit, delete, and reorder playlists
+- **Quick Actions**: Play all tracks or shuffle playlist with one click
+- **Track Organization**: Add/remove tracks easily from any playlist
+
+### Progressive Web App (PWA)
+
+The app is installable and works offline:
+- **Service Worker**: Caches app files for offline access
+- **Install Prompt**: Browser prompts to install as standalone app
+- **Offline First**: Core app functionality works without internet
+- **Background Playback**: Continue playing on mobile when app is in background
+- **App Icon**: Appears on home screen like a native app
+
 ### Cassette Tape Animation
 
 When you play a song, you can view an animated cassette tape:
@@ -111,7 +155,21 @@ When you play a song, you can view an animated cassette tape:
 
 ### Library View
 - Access all your liked songs
+- View and play custom playlists
 - Persistent storage using browser's localStorage
+
+### Local Files View
+- **Upload Music**: Drag & drop or browse to upload MP3, WAV, OGG, and M4A files
+- **Offline Playback**: Play your local music files without internet connection
+- **Persistent Storage**: Files stored in browser's IndexedDB for offline access
+- **Full Playback Controls**: Same controls as YouTube tracks
+
+### Playlist Management
+- **Create Playlists**: Organize your music into custom collections
+- **Edit & Delete**: Manage playlist names, descriptions, and tracks
+- **Add Tracks**: Add tracks from YouTube or local files to any playlist
+- **Play All/Shuffle**: Quick playback options for entire playlists
+- **Track Management**: Remove individual tracks from playlists
 
 ### Player Controls
 - **Play/Pause**: Toggle playback
@@ -134,8 +192,12 @@ When you play a song, you can view an animated cassette tape:
 - **CSS3**: Modern styling with animations and gradients
 - **Vanilla JavaScript**: No frameworks, pure JS for performance
 - **YouTube Data API v3**: Fetching music videos
-- **YouTube IFrame Player API**: Audio playback
-- **LocalStorage**: Persisting user data (API key, liked songs, history)
+- **YouTube IFrame Player API**: Streaming audio playback
+- **Web Audio API**: Local file audio playback
+- **IndexedDB**: Storing local music files for offline playback
+- **LocalStorage**: Persisting user data (API keys, liked songs, playlists, history)
+- **Service Worker**: PWA functionality and offline app caching
+- **Web App Manifest**: Installable PWA configuration
 
 ### API Endpoints Used
 
@@ -156,7 +218,10 @@ When you play a song, you can view an animated cassette tape:
 Musika ni Rod/
 ├── index.html          # Main HTML structure
 ├── styles.css          # All styling and animations
-├── app.js              # Application logic and API integration
+├── app.js              # Application logic, API integration, playlist & local file management
+├── utils.js            # Utility functions and helpers
+├── service-worker.js   # PWA service worker for offline functionality
+├── manifest.json       # PWA manifest for installability
 └── README.md           # This file
 ```
 
@@ -172,15 +237,19 @@ Musika ni Rod/
 - YouTube API has a daily quota limit (10,000 units per day by default per key)
 - Each search costs ~100 units, each video list costs ~1 unit
 - Use multiple API keys to increase your total daily quota
-- Audio-only playback (video is hidden)
-- Requires internet connection
+- Audio-only playback for YouTube (video is hidden)
+- YouTube streaming requires internet connection (local files work offline)
 - API keys must be valid and have YouTube Data API v3 enabled
+- Local files are stored in browser storage (limited by browser quota, typically 50MB-1GB+)
+- Background playback on iOS Safari may require user interaction
 
 ## Privacy
 
-- All data is stored locally in your browser
+- All data is stored locally in your browser (localStorage and IndexedDB)
 - No data is sent to external servers except YouTube API calls
-- Your API key is stored in localStorage (keep it secure)
+- Your API keys are stored in localStorage (keep them secure)
+- Local music files remain on your device and are never uploaded
+- No user tracking or analytics
 
 ## Troubleshooting
 
@@ -211,15 +280,27 @@ Musika ni Rod/
 - Click the cassette icon in the player bar
 - Check that CSS animations are enabled in your browser
 
+### Local files not uploading
+- Ensure files are in supported formats (MP3, WAV, OGG, M4A)
+- Check browser storage quota hasn't been exceeded
+- Try smaller files or clear browser data
+- Some browsers may block file access - check permissions
+
+### App not installing as PWA
+- Ensure you're using HTTPS or localhost
+- Check that service worker is registered (visible in browser DevTools)
+- Look for install prompt in browser address bar or menu
+
 ## Future Enhancements
 
-- [ ] Playlists creation and management
-- [ ] Queue management
-- [ ] Lyrics display
-- [ ] Social sharing
+- [ ] Queue management and reordering
+- [ ] Lyrics display integration
+- [ ] Social sharing features
 - [ ] User accounts and cloud sync
-- [ ] Equalizer visualization
-- [ ] Download for offline listening (where permitted)
+- [ ] Audio equalizer with presets
+- [ ] Import/export playlists
+- [ ] Crossfade between tracks
+- [ ] Sleep timer
 
 ## License
 
